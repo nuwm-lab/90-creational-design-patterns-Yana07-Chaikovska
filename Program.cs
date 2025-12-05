@@ -1,146 +1,150 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
-namespace MilitaryStrategyBuilder
+namespace DocumentationBuilderPattern
 {
-    // -------------------------
-    // PRODUCT
-    // -------------------------
-    public class StrategyScenario
+    // ============================
+    // PRODUCT (НЕЗМІННИЙ)
+    // ============================
+    public class Document
     {
-        public List<string> Troops { get; set; } = new List<string>();
-        public List<string> Resources { get; set; } = new List<string>();
-        public string Map { get; set; }
+        private readonly List<string> _sections = new();
+        private readonly List<string> _footnotes = new();
+
+        public string Title { get; }
+        public ReadOnlyCollection<string> Sections => _sections.AsReadOnly();
+        public ReadOnlyCollection<string> Footnotes => _footnotes.AsReadOnly();
+
+        public Document(string title, IEnumerable<string> sections, IEnumerable<string> footnotes)
+        {
+            Title = title;
+            _sections.AddRange(sections);
+            _footnotes.AddRange(footnotes);
+        }
 
         public override string ToString()
         {
-            return
-                "===== СЦЕНАРІЙ ВІЙСЬКОВОЇ СТРАТЕГІЇ =====\n" +
-                $"Карта: {Map}\n" +
-                $"Війська: {string.Join(", ", Troops)}\n" +
-                $"Ресурси: {string.Join(", ", Resources)}\n";
+            string output = $"==== ДОКУМЕНТ ====\nЗаголовок: {Title}\n\n--- Секції ---\n";
+            foreach (var s in Sections)
+                output += "• " + s + "\n";
+
+            output += "\n--- Виноски ---\n";
+            foreach (var f in Footnotes)
+                output += "* " + f + "\n";
+
+            return output;
         }
     }
 
-    // -------------------------
-    // BUILDER INTERFACE
-    // -------------------------
-    public interface IScenarioBuilder
+    // ============================
+    // BUILDER
+    // ============================
+    public interface IDocumentBuilder
     {
         void Reset();
-        void SetMap(string map);
-        void AddTroop(string troop);
-        void AddResource(string resource);
-        StrategyScenario GetResult();
+        void SetTitle(string title);
+        void AddSection(string text);
+        void AddFootnote(string note);
+        Document GetResult();
     }
 
-    // -------------------------
+    // ============================
     // CONCRETE BUILDER
-    // -------------------------
-    public class ScenarioBuilder : IScenarioBuilder
+    // ============================
+    public class DocumentationBuilder : IDocumentBuilder
     {
-        private StrategyScenario _scenario = new StrategyScenario();
+        private string _title;
+        private readonly List<string> _sections = new();
+        private readonly List<string> _footnotes = new();
 
         public void Reset()
         {
-            _scenario = new StrategyScenario();
+            _title = "";
+            _sections.Clear();
+            _footnotes.Clear();
         }
 
-        public void SetMap(string map)
+        public void SetTitle(string title)
         {
-            _scenario.Map = map;
+            _title = title;
         }
 
-        public void AddTroop(string troop)
+        public void AddSection(string text)
         {
-            _scenario.Troops.Add(troop);
+            _sections.Add(text);
         }
 
-        public void AddResource(string resource)
+        public void AddFootnote(string note)
         {
-            _scenario.Resources.Add(resource);
+            _footnotes.Add(note);
         }
 
-        public StrategyScenario GetResult()
+        public Document GetResult()
         {
-            return _scenario;
+            // повертаємо копії колекцій → інкапсуляція
+            return new Document(_title, new List<string>(_sections), new List<string>(_footnotes));
         }
     }
 
-    // -------------------------
+    // ============================
     // DIRECTOR
-    // -------------------------
-    public class ScenarioDirector
+    // ============================
+    public class DocumentDirector
     {
-        private readonly IScenarioBuilder _builder;
+        private readonly IDocumentBuilder _builder;
 
-        public ScenarioDirector(IScenarioBuilder builder)
+        public DocumentDirector(IDocumentBuilder builder)
         {
             _builder = builder;
         }
 
-        public StrategyScenario BuildBasicScenario()
+        public Document BuildShortManual()
         {
             _builder.Reset();
-            _builder.SetMap("Пустеля");
-            _builder.AddTroop("Піхота");
-            _builder.AddResource("Їжа");
+            _builder.SetTitle("Короткий мануал користувача");
+            _builder.AddSection("Вступ: призначення системи.");
+            _builder.AddSection("Основні функції та можливості.");
+            _builder.AddFootnote("Версія документа: 1.0");
             return _builder.GetResult();
         }
 
-        public StrategyScenario BuildAdvancedScenario()
+        public Document BuildTechnicalSpecification()
         {
             _builder.Reset();
-            _builder.SetMap("Гори");
-            _builder.AddTroop("Лучники");
-            _builder.AddTroop("Кавалерія");
-            _builder.AddResource("Золото");
-            _builder.AddResource("Медицина");
-            return _builder.GetResult();
-        }
-
-        public StrategyScenario BuildCustomScenario()
-        {
-            _builder.Reset();
-            _builder.SetMap("Ліс");
-            _builder.AddTroop("Спеціальний загін");
-            _builder.AddTroop("Снайпери");
-            _builder.AddResource("Боєприпаси");
-            _builder.AddResource("Паливо");
+            _builder.SetTitle("Технічна специфікація");
+            _builder.AddSection("Опис архітектури.");
+            _builder.AddSection("Вимоги до обладнання.");
+            _builder.AddSection("Протоколи взаємодії.");
+            _builder.AddFootnote("Документ створено автоматично.");
             return _builder.GetResult();
         }
     }
 
-    // -------------------------
-    // PROGRAM (MAIN)
-    // -------------------------
+    // ============================
+    // MAIN
+    // ============================
     internal class Program
     {
         static void Main(string[] args)
         {
-            var builder = new ScenarioBuilder();
-            var director = new ScenarioDirector(builder);
+            var builder = new DocumentationBuilder();
+            var director = new DocumentDirector(builder);
 
-            Console.WriteLine("=== БАЗОВИЙ СЦЕНАРІЙ ===");
-            var basic = director.BuildBasicScenario();
-            Console.WriteLine(basic);
+            Console.WriteLine("=== КОРОТКИЙ МАНУАЛ ===");
+            Console.WriteLine(director.BuildShortManual());
 
-            Console.WriteLine("=== ПРОСУНУТИЙ СЦЕНАРІЙ ===");
-            var advanced = director.BuildAdvancedScenario();
-            Console.WriteLine(advanced);
+            Console.WriteLine("=== ТЕХНІЧНА СПЕЦИФІКАЦІЯ ===");
+            Console.WriteLine(director.BuildTechnicalSpecification());
 
-            Console.WriteLine("=== КАСТОМНИЙ СЦЕНАРІЙ ===");
-            var custom = director.BuildCustomScenario();
-            Console.WriteLine(custom);
-
-            // Можна вручну:
+            // Створення документа вручну
             builder.Reset();
-            builder.SetMap("Острів");
-            builder.AddTroop("Морська піхота");
-            builder.AddResource("Вода");
-            builder.AddResource("Паливо");
+            builder.SetTitle("Користувацький документ");
+            builder.AddSection("Це перша секція.");
+            builder.AddSection("Це друга секція.");
+            builder.AddFootnote("Це виноска користувача.");
 
-            Console.WriteLine("=== РУЧНИЙ СЦЕНАРІЙ ===");
+            Console.WriteLine("=== РУЧНИЙ ДОКУМЕНТ ===");
             Console.WriteLine(builder.GetResult());
         }
     }
